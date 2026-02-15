@@ -1,0 +1,14 @@
+{
+    "hooks": [
+        {
+            "node": "DPRandomGenerator",
+            "method": "get_prompt",
+            "enabled": true
+        },
+        {
+            "node": "DPJinja",
+            "method": "get_prompt",
+            "enabled": true
+        }
+    ]
+}
