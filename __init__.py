@@ -145,6 +145,29 @@ try:
                 "hooked": list(_hooked_methods.keys())
             })
 
+        @PromptServer.instance.routes.get("/remove-print/nodes")
+        async def get_nodes(request):
+            """登録済みノードの一覧を返す"""
+            nodes = sorted(_node_class_mappings.keys())
+            return web.json_response({"nodes": nodes})
+
+        @PromptServer.instance.routes.get("/remove-print/methods/{node_name}")
+        async def get_methods(request):
+            """指定ノードのメソッド一覧を返す（リフレクション）"""
+            node_name = request.match_info.get("node_name", "")
+            node_class = _node_class_mappings.get(node_name)
+            if node_class is None:
+                return web.json_response({"methods": []}, status=404)
+
+            import inspect
+            methods = []
+            for name, method in inspect.getmembers(node_class, predicate=inspect.isfunction):
+                # dunderメソッドを除外
+                if not name.startswith("_"):
+                    methods.append(name)
+            methods.sort()
+            return web.json_response({"methods": methods})
+
 except ImportError:
     console_print("PromptServerが利用できないため、APIエンドポイントは無効です。")
 

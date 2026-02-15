@@ -114,15 +114,25 @@ function showSettingsDialog() {
     display: flex; gap: 8px; margin-top: 16px; align-items: center;
   `;
 
+    // ノード入力 + datalist
+    const nodeDatalist = document.createElement("datalist");
+    nodeDatalist.id = "remove-print-node-list";
+
     const nodeInput = document.createElement("input");
-    nodeInput.placeholder = "ノード名";
+    nodeInput.placeholder = "ノード名（入力で候補表示）";
+    nodeInput.setAttribute("list", "remove-print-node-list");
     nodeInput.style.cssText = `
     flex: 1; padding: 8px 12px; background: #333; border: 1px solid #555;
     border-radius: 6px; color: #eee; font-size: 14px;
   `;
 
+    // メソッド入力 + datalist
+    const methodDatalist = document.createElement("datalist");
+    methodDatalist.id = "remove-print-method-list";
+
     const methodInput = document.createElement("input");
     methodInput.placeholder = "メソッド名";
+    methodInput.setAttribute("list", "remove-print-method-list");
     methodInput.style.cssText = nodeInput.style.cssText;
 
     const addBtn = document.createElement("button");
@@ -133,8 +143,50 @@ function showSettingsDialog() {
   `;
 
     addForm.appendChild(nodeInput);
+    addForm.appendChild(nodeDatalist);
     addForm.appendChild(methodInput);
+    addForm.appendChild(methodDatalist);
     addForm.appendChild(addBtn);
+
+    // ノード一覧をAPIから取得してdatalistに設定
+    fetch("/remove-print/nodes")
+        .then((r) => r.json())
+        .then(({ nodes }) => {
+            nodeDatalist.innerHTML = "";
+            nodes.forEach((name) => {
+                const opt = document.createElement("option");
+                opt.value = name;
+                nodeDatalist.appendChild(opt);
+            });
+        })
+        .catch(() => { });
+
+    // ノード選択時にメソッド候補を動的取得
+    let lastFetchedNode = "";
+    nodeInput.addEventListener("change", fetchMethods);
+    nodeInput.addEventListener("blur", fetchMethods);
+
+    function fetchMethods() {
+        const nodeName = nodeInput.value.trim();
+        if (!nodeName || nodeName === lastFetchedNode) return;
+        lastFetchedNode = nodeName;
+
+        fetch(`/remove-print/methods/${encodeURIComponent(nodeName)}`)
+            .then((r) => r.json())
+            .then(({ methods }) => {
+                methodDatalist.innerHTML = "";
+                methods.forEach((name) => {
+                    const opt = document.createElement("option");
+                    opt.value = name;
+                    methodDatalist.appendChild(opt);
+                });
+                // メソッド入力にフォーカスして候補を表示しやすくする
+                methodInput.focus();
+            })
+            .catch(() => {
+                methodDatalist.innerHTML = "";
+            });
+    }
 
     // フッターボタン
     const footer = document.createElement("div");
@@ -325,19 +377,9 @@ app.registerExtension({
     async setup() {
         // Settings パネルに「Remove Print フック設定」エントリを追加
         app.ui.settings.addSetting({
-            id: "comfyui-remove-print.hooks",
+            id: "ComfyuiRemovePrint.Hooks",
             name: "🔇 Remove Print: フック設定を編集",
             type: () => {
-                // カスタムUI: 編集ボタンを返す
-                const container = document.createElement("tr");
-
-                const labelCell = document.createElement("td");
-                const label = document.createElement("label");
-                label.textContent = "🔇 Remove Print: フック設定";
-                label.style.whiteSpace = "nowrap";
-                labelCell.appendChild(label);
-
-                const controlCell = document.createElement("td");
                 const editBtn = document.createElement("button");
                 editBtn.textContent = "編集...";
                 editBtn.style.cssText = `
@@ -349,11 +391,7 @@ app.registerExtension({
                     e.preventDefault();
                     showSettingsDialog();
                 };
-                controlCell.appendChild(editBtn);
-
-                container.appendChild(labelCell);
-                container.appendChild(controlCell);
-                return container;
+                return editBtn;
             },
             defaultValue: "",
         });
