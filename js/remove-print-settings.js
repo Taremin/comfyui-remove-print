@@ -2,6 +2,43 @@ import { app } from "../../scripts/app.js";
 
 const EXTENSION_NAME = "comfyui-remove-print";
 
+/** @type {Record<string, Record<string, string>>} */
+let MESSAGES = { en: {}, ja: {} };
+
+/**
+ * 翻訳を取得するヘルパー関数
+ * @param {string} key 
+ * @param {Record<string, any>} [params] 
+ * @returns {string}
+ */
+function t(key, params = {}) {
+    const locale = app.ui.settings.getSettingValue("Comfy.Locale") || "en";
+    const dict = MESSAGES[locale] || MESSAGES["en"];
+    let text = dict[key] || MESSAGES["en"][key] || key;
+
+    for (const [k, v] of Object.entries(params)) {
+        text = text.replace(`{${k}}`, v);
+    }
+    return text;
+}
+
+/**
+ * 翻訳データをロードする
+ */
+async function loadTranslations() {
+    try {
+        const [enResp, jaResp] = await Promise.all([
+            fetch("/remove-print/locales/en"),
+            fetch("/remove-print/locales/ja")
+        ]);
+
+        MESSAGES.en = await enResp.json();
+        MESSAGES.ja = await jaResp.json();
+    } catch (e) {
+        console.error(`[${EXTENSION_NAME}] Failed to load translations:`, e);
+    }
+}
+
 /**
  * フック設定を読み込む
  * ユーザー設定が存在すればそれを、なければデフォルト設定を返す
@@ -14,7 +51,7 @@ async function loadHooks() {
             return { hooks: data.hooks || [] };
         }
     } catch (e) {
-        console.error("[Remove Print] 設定の読み込みに失敗:", e);
+        console.error(`[${t("modal.title")}] Failed to load settings:`, e);
     }
 
     return { hooks: [] };
@@ -31,7 +68,7 @@ async function saveHooks(hooks) {
         body: body,
     });
     if (!resp.ok) {
-        throw new Error(`保存に失敗しました: ${resp.status}`);
+        throw new Error(`${t("modal.saveError", { message: resp.status })}`);
     }
     return resp.json();
 }
@@ -44,7 +81,7 @@ async function resetToDefault() {
         method: "DELETE",
     });
     if (!resp.ok) {
-        throw new Error(`リセットに失敗しました: ${resp.status}`);
+        throw new Error(`${t("modal.resetError", { message: resp.status })}`);
     }
     return resp.json();
 }
@@ -83,9 +120,10 @@ function showSettingsDialog() {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 16px; border-bottom: 1px solid #444; padding-bottom: 12px;
   `;
-    header.innerHTML = `
-    <h2 style="margin: 0; font-size: 18px; color: #fff;">🔇 Remove Print 設定</h2>
-  `;
+    const title = document.createElement("h2");
+    title.style.cssText = "margin: 0; font-size: 18px; color: #fff;";
+    title.textContent = t("modal.title");
+    header.appendChild(title);
 
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "✕";
@@ -102,7 +140,7 @@ function showSettingsDialog() {
     background: #3a3520; border: 1px solid #665a22; border-radius: 8px;
     padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: #e8d44d;
   `;
-    notice.textContent = "💡 設定を保存すると即座にサーバーに反映されます。";
+    notice.textContent = t("modal.notice");
 
     // フックリストコンテナ
     const listContainer = document.createElement("div");
@@ -119,7 +157,7 @@ function showSettingsDialog() {
     nodeDatalist.id = "remove-print-node-list";
 
     const nodeInput = document.createElement("input");
-    nodeInput.placeholder = "ノード名（入力で候補表示）";
+    nodeInput.placeholder = t("modal.nodePlaceholder");
     nodeInput.setAttribute("list", "remove-print-node-list");
     nodeInput.style.cssText = `
     flex: 1; padding: 8px 12px; background: #333; border: 1px solid #555;
@@ -131,12 +169,12 @@ function showSettingsDialog() {
     methodDatalist.id = "remove-print-method-list";
 
     const methodInput = document.createElement("input");
-    methodInput.placeholder = "メソッド名";
+    methodInput.placeholder = t("modal.methodPlaceholder");
     methodInput.setAttribute("list", "remove-print-method-list");
     methodInput.style.cssText = nodeInput.style.cssText;
 
     const addBtn = document.createElement("button");
-    addBtn.textContent = "＋ 追加";
+    addBtn.textContent = t("modal.addButton");
     addBtn.style.cssText = `
     padding: 8px 16px; background: #2d6a4f; border: none; border-radius: 6px;
     color: #fff; cursor: pointer; font-size: 14px; white-space: nowrap;
@@ -196,14 +234,14 @@ function showSettingsDialog() {
   `;
 
     const resetBtn = document.createElement("button");
-    resetBtn.textContent = "デフォルトにリセット";
+    resetBtn.textContent = t("modal.resetButton");
     resetBtn.style.cssText = `
     padding: 8px 16px; background: #555; border: none; border-radius: 6px;
     color: #ddd; cursor: pointer; font-size: 14px;
   `;
 
     const saveBtn = document.createElement("button");
-    saveBtn.textContent = "保存して適用";
+    saveBtn.textContent = t("modal.saveButton");
     saveBtn.style.cssText = `
     padding: 8px 20px; background: #1a73e8; border: none; border-radius: 6px;
     color: #fff; cursor: pointer; font-size: 14px; font-weight: bold;
@@ -237,7 +275,7 @@ function showSettingsDialog() {
             empty.style.cssText = `
         text-align: center; color: #888; padding: 24px; font-size: 14px;
       `;
-            empty.textContent = "フックが登録されていません";
+            empty.textContent = t("modal.emptyMessage");
             listContainer.appendChild(empty);
             return;
         }
@@ -272,7 +310,7 @@ function showSettingsDialog() {
             // 削除ボタン
             const delBtn = document.createElement("button");
             delBtn.textContent = "🗑";
-            delBtn.title = "削除";
+            delBtn.title = t("modal.deleteTooltip");
             delBtn.style.cssText = `
         background: none; border: none; color: #e74c3c; font-size: 16px;
         cursor: pointer; padding: 4px 8px; border-radius: 4px;
@@ -302,13 +340,13 @@ function showSettingsDialog() {
         const node = nodeInput.value.trim();
         const method = methodInput.value.trim();
         if (!node || !method) {
-            alert("ノード名とメソッド名を入力してください");
+            alert(t("modal.inputRequired"));
             return;
         }
 
         // 重複チェック
         if (currentHooks.some((h) => h.node === node && h.method === method)) {
-            alert("同じフックが既に登録されています");
+            alert(t("modal.duplicateHook"));
             return;
         }
 
@@ -321,13 +359,13 @@ function showSettingsDialog() {
     // 保存ボタン
     saveBtn.onclick = async () => {
         saveBtn.disabled = true;
-        saveBtn.textContent = "保存中...";
+        saveBtn.textContent = t("modal.saving");
         try {
             const result = await saveHooks(currentHooks);
             notice.style.background = "#1a3a2a";
             notice.style.borderColor = "#2d6a4f";
             notice.style.color = "#5fe89d";
-            notice.textContent = `✅ 保存して適用しました（フック数: ${result.hooked?.length || 0}）`;
+            notice.textContent = t("modal.saveSuccess", { count: result.hooked?.length || 0 });
 
             // 最新の設定で再表示
             const { hooks } = await loadHooks();
@@ -337,18 +375,18 @@ function showSettingsDialog() {
             notice.style.background = "#3a2020";
             notice.style.borderColor = "#cc4444";
             notice.style.color = "#e74c3c";
-            notice.textContent = `❌ エラー: ${e.message}`;
+            notice.textContent = t("modal.saveError", { message: e.message });
         } finally {
             saveBtn.disabled = false;
-            saveBtn.textContent = "保存して適用";
+            saveBtn.textContent = t("modal.saveButton");
         }
     };
 
     // リセットボタン
     resetBtn.onclick = async () => {
-        if (!confirm("ユーザー設定を削除してデフォルトに戻しますか？")) return;
+        if (!confirm(t("modal.confirmReset"))) return;
         resetBtn.disabled = true;
-        resetBtn.textContent = "リセット中...";
+        resetBtn.textContent = t("modal.resetting");
         try {
             await resetToDefault();
             const { hooks } = await loadHooks();
@@ -358,15 +396,15 @@ function showSettingsDialog() {
             notice.style.background = "#1a3a2a";
             notice.style.borderColor = "#2d6a4f";
             notice.style.color = "#5fe89d";
-            notice.textContent = "✅ デフォルト設定に戻しました";
+            notice.textContent = t("modal.resetSuccess");
         } catch (e) {
             notice.style.background = "#3a2020";
             notice.style.borderColor = "#cc4444";
             notice.style.color = "#e74c3c";
-            notice.textContent = `❌ リセットに失敗: ${e.message}`;
+            notice.textContent = t("modal.resetError", { message: e.message });
         } finally {
             resetBtn.disabled = false;
-            resetBtn.textContent = "デフォルトにリセット";
+            resetBtn.textContent = t("modal.resetButton");
         }
     };
 }
@@ -375,20 +413,27 @@ function showSettingsDialog() {
 app.registerExtension({
     name: `${EXTENSION_NAME}.settings`,
     async setup() {
+        await loadTranslations();
         // Settings パネルに「Remove Print フック設定」エントリを追加
         app.ui.settings.addSetting({
             id: "ComfyuiRemovePrint.Hooks",
-            name: "🔇 Remove Print: フック設定を編集",
+            get name() {
+                return t("settings.hookName");
+            },
+            get category() {
+                return ["comfyui_remove_print", t("settings.category")];
+            },
             type: () => {
                 const editBtn = document.createElement("button");
-                editBtn.textContent = "編集...";
+                editBtn.textContent = t("modal.editButton");
                 editBtn.style.cssText = `
                     padding: 4px 12px; background: #1a73e8; border: none;
                     border-radius: 4px; color: #fff; cursor: pointer;
                     font-size: 13px;
                 `;
-                editBtn.onclick = (e) => {
+                editBtn.onclick = async (e) => {
                     e.preventDefault();
+                    await loadTranslations(); // Ensure translations are fresh
                     showSettingsDialog();
                 };
                 return editBtn;

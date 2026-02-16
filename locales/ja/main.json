@@ -1,0 +1,23 @@
+{
+    "modal.title": "🔇 Remove Print 設定",
+    "modal.notice": "💡 設定を保存すると即座にサーバーに反映されます。",
+    "modal.nodePlaceholder": "ノード名（入力で候補表示）",
+    "modal.methodPlaceholder": "メソッド名",
+    "modal.addButton": "＋ 追加",
+    "modal.resetButton": "デフォルトにリセット",
+    "modal.saveButton": "保存して適用",
+    "modal.emptyMessage": "フックが登録されていません",
+    "modal.deleteTooltip": "削除",
+    "modal.saving": "保存中...",
+    "modal.resetting": "リセット中...",
+    "modal.saveSuccess": "✅ 保存して適用しました（フック数: {count}）",
+    "modal.saveError": "❌ エラー: {message}",
+    "modal.resetSuccess": "✅ デフォルト設定に戻しました",
+    "modal.resetError": "❌ リセットに失敗: {message}",
+    "modal.inputRequired": "ノード名とメソッド名を入力してください",
+    "modal.duplicateHook": "同じフックが既に登録されています",
+    "modal.confirmReset": "ユーザー設定を削除してデフォルトに戻しますか？",
+    "modal.editButton": "編集...",
+    "settings.hookName": "🔇 Remove Print: フック設定を編集",
+    "settings.category": "🔇 Remove Print"
+}

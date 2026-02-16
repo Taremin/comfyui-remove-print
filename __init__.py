@@ -6,10 +6,10 @@ from .config import load_hooks, load_default_hooks, get_user_hooks_path
 
 NAME = "ComfyUI Remove Print"
 
-# フックの状態管理: {(node_name, method_name): original_method}
+# Hook state management: {(node_name, method_name): original_method}
 _hooked_methods = {}
 
-# ノードクラスマッピングへの参照を保持（reload時に使用）
+# Reference to node class mappings (used for reloading)
 _node_class_mappings = {}
 
 
@@ -19,7 +19,7 @@ def console_print(*args):
 
 
 def _apply_hooks(mappings: dict):
-    """設定に基づいてフックを適用する。enabledなフックのみ適用。"""
+    """Apply hooks based on settings. Only enabled hooks are applied."""
     hooks = load_hooks()
     hook_dict = {hook["node"]: hook for hook in hooks}
 
@@ -28,26 +28,26 @@ def _apply_hooks(mappings: dict):
         if hook is None:
             continue
 
-        # 無効なフックはスキップ
+        # Skip disabled hooks
         if not hook.get("enabled", True):
-            console_print(f"""スキップ（無効）: {hook["node"]}.{hook["method"]}""")
+            console_print(f"""Skipped (disabled): {hook["node"]}.{hook["method"]}""")
             continue
 
         method_name = hook["method"]
         if not hasattr(value, method_name):
-            console_print(f"""メソッドが見つかりません: {hook["node"]}.{method_name}""")
+            console_print(f"""Method not found: {hook["node"]}.{method_name}""")
             continue
 
         hook_key = (key, method_name)
 
-        # 既にフック済みならスキップ
+        # Skip if already hooked
         if hook_key in _hooked_methods:
-            console_print(f"""既にフック済み: {hook["node"]}.{method_name}""")
+            console_print(f"""Already hooked: {hook["node"]}.{method_name}""")
             continue
 
         original_method = getattr(value, method_name)
         _hooked_methods[hook_key] = original_method
-        console_print(f"""フック適用: {hook["node"]}.{method_name}""")
+        console_print(f"""Hook applied: {hook["node"]}.{method_name}""")
 
         def make_hooked_method(original):
             def hooked_method(*args, **kwargs):
@@ -59,25 +59,25 @@ def _apply_hooks(mappings: dict):
 
 
 def _restore_hooks(mappings: dict):
-    """適用済みのフックをすべて解除し、元のメソッドに戻す。"""
+    """Restore all applied hooks to their original methods."""
     for (node_name, method_name), original_method in list(_hooked_methods.items()):
         node_class = mappings.get(node_name)
         if node_class is not None:
             setattr(node_class, method_name, original_method)
-            console_print(f"""フック解除: {node_name}.{method_name}""")
+            console_print(f"""Hook removed: {node_name}.{method_name}""")
     _hooked_methods.clear()
 
 
 def reload_hooks():
-    """設定を再読み込みし、フックを再適用する（リアルタイム更新用）。"""
-    console_print("設定を再読み込みしてフックを再適用します...")
+    """Reload settings and re-apply hooks (for real-time updates)."""
+    console_print("Reloading settings and re-applying hooks...")
     _restore_hooks(_node_class_mappings)
     _apply_hooks(_node_class_mappings)
-    console_print("フックの再適用が完了しました。")
+    console_print("Hooks re-applied successfully.")
 
 
 def on_load(mappings: dict):
-    """カスタムノード読み込み完了後のコールバック。"""
+    """Callback after custom nodes are loaded."""
     global _node_class_mappings
     _node_class_mappings = mappings
     _apply_hooks(mappings)
@@ -86,7 +86,7 @@ def on_load(mappings: dict):
 on_custom_nodes_loaded(on_load)
 
 
-# === APIエンドポイント ===
+# === API Endpoints ===
 try:
     from aiohttp import web
     from server import PromptServer
@@ -94,31 +94,31 @@ try:
     if hasattr(PromptServer, "instance"):
         @PromptServer.instance.routes.get("/remove-print/default-hooks")
         async def get_default_hooks(request):
-            """デフォルトのフック設定を返す"""
+            """Return default hook settings"""
             hooks = load_default_hooks()
             return web.json_response({"hooks": hooks})
 
         @PromptServer.instance.routes.get("/remove-print/hooks")
         async def get_hooks(request):
-            """現在のフック設定を返す（ユーザー設定 or デフォルト）"""
+            """Return current hook settings (User settings or default)"""
             hooks = load_hooks()
             return web.json_response({"hooks": hooks})
 
         @PromptServer.instance.routes.post("/remove-print/hooks")
         async def save_hooks(request):
-            """ユーザー設定を保存してフックを再適用する"""
+            """Save user settings and re-apply hooks"""
             try:
                 body = await request.read()
                 data = json.loads(body)
                 hooks = data.get("hooks", [])
 
-                # ユーザー設定ファイルに保存
+                # Save to user settings file
                 user_path = get_user_hooks_path()
                 os.makedirs(os.path.dirname(user_path), exist_ok=True)
                 with open(user_path, "w", encoding="utf-8") as f:
                     json.dump({"hooks": hooks}, f, indent=2, ensure_ascii=False)
 
-                # フックを再適用
+                # Re-apply hooks
                 reload_hooks()
 
                 return web.json_response({
@@ -131,12 +131,12 @@ try:
 
         @PromptServer.instance.routes.delete("/remove-print/hooks")
         async def delete_hooks(request):
-            """ユーザー設定を削除してデフォルトに戻し、フックを再適用する"""
+            """Delete user settings, restore defaults, and re-apply hooks"""
             user_path = get_user_hooks_path()
             if os.path.exists(user_path):
                 os.remove(user_path)
 
-            # フックを再適用
+            # Re-apply hooks
             reload_hooks()
 
             return web.json_response({
@@ -145,15 +145,40 @@ try:
                 "hooked": list(_hooked_methods.keys())
             })
 
+        @PromptServer.instance.routes.get("/remove-print/locales/{lang}")
+        async def get_locales(request):
+            """Return main.json for the specified language"""
+            lang = request.match_info.get("lang", "en")
+            # Security check: only allow 'en', 'ja' etc.
+            if not lang.isalnum() and "-" not in lang:
+                return web.json_response({"error": "Invalid language code"}, status=400)
+
+            node_dir = os.path.dirname(os.path.abspath(__file__))
+            path = os.path.join(node_dir, "locales", lang, "main.json")
+
+            if not os.path.exists(path):
+                # Fallback to English
+                path = os.path.join(node_dir, "locales", "en", "main.json")
+
+            if not os.path.exists(path):
+                return web.json_response({}, status=404)
+
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return web.json_response(data)
+            except Exception as e:
+                return web.json_response({"error": str(e)}, status=500)
+
         @PromptServer.instance.routes.get("/remove-print/nodes")
         async def get_nodes(request):
-            """登録済みノードの一覧を返す"""
+            """Return list of registered nodes"""
             nodes = sorted(_node_class_mappings.keys())
             return web.json_response({"nodes": nodes})
 
         @PromptServer.instance.routes.get("/remove-print/methods/{node_name}")
         async def get_methods(request):
-            """指定ノードのメソッド一覧を返す（リフレクション）"""
+            """Return list of methods for specified node (Reflection)"""
             node_name = request.match_info.get("node_name", "")
             node_class = _node_class_mappings.get(node_name)
             if node_class is None:
@@ -162,17 +187,17 @@ try:
             import inspect
             methods = []
             for name, method in inspect.getmembers(node_class, predicate=inspect.isfunction):
-                # dunderメソッドを除外
+                # Exclude dunder methods
                 if not name.startswith("_"):
                     methods.append(name)
             methods.sort()
             return web.json_response({"methods": methods})
 
 except ImportError:
-    console_print("PromptServerが利用できないため、APIエンドポイントは無効です。")
+    console_print("PromptServer not available, API endpoints disabled.")
 
 
-# === WebUI拡張 ===
+# === WebUI Extension ===
 WEB_DIRECTORY = "./js"
 
 NODE_CLASS_MAPPINGS = {}

@@ -1,0 +1,23 @@
+{
+    "modal.title": "🔇 Remove Print Settings",
+    "modal.notice": "💡 Settings are applied to the server immediately after saving.",
+    "modal.nodePlaceholder": "Node name (type to search)",
+    "modal.methodPlaceholder": "Method name",
+    "modal.addButton": "＋ Add",
+    "modal.resetButton": "Reset to Default",
+    "modal.saveButton": "Save & Apply",
+    "modal.emptyMessage": "No hooks registered",
+    "modal.deleteTooltip": "Delete",
+    "modal.saving": "Saving...",
+    "modal.resetting": "Resetting...",
+    "modal.saveSuccess": "✅ Saved and applied (Hooks: {count})",
+    "modal.saveError": "❌ Error: {message}",
+    "modal.resetSuccess": "✅ Restored to default settings",
+    "modal.resetError": "❌ Reset failed: {message}",
+    "modal.inputRequired": "Please enter both node and method names",
+    "modal.duplicateHook": "This hook is already registered",
+    "modal.confirmReset": "Delete user settings and restore to defaults?",
+    "modal.editButton": "Edit...",
+    "settings.hookName": "🔇 Remove Print: Edit Hook Settings",
+    "settings.category": "🔇 Remove Print"
+}
