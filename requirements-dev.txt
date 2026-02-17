@@ -1,0 +1,5 @@
+pytest
+pytest-asyncio
+websocket-client
+playwright
+pytest-playwright
